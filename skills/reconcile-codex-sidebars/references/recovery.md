@@ -19,6 +19,14 @@ than overriding the hash check.
 Do not restore while Desktop is running. Do not select a backup using a broad
 glob or delete other backups during recovery.
 
+## Restore synchronized sections
+
+If a successful section sync must be reversed, run
+`sync_sections.py rollback --receipt ... --output ...`. The command refuses to
+overwrite tasks that changed sections after the apply, restores each moved task
+to its recorded previous section, and deletes only sections created by that
+receipt. Preserve both the original receipt and rollback receipt.
+
 ## Cleanup
 
 After successful Desktop and Remote verification, run

@@ -8,9 +8,10 @@ screenshots of private sidebars.
 ## Purpose
 
 `reconcile-codex-sidebars` audits the thread catalogue shared by Codex Desktop
-and Remote, reconciles Desktop's local project assignments, and produces a
-deterministic alphabetical sidebar. It exists because the shared thread
-catalogue and Desktop's project presentation metadata are separate contracts.
+and Remote, reconciles Desktop's local project assignments, then mirrors those
+assignments into server-owned thread sections for cross-client display. It
+exists because Desktop project metadata and synchronized thread sections are
+separate contracts.
 
 ## Maintenance
 
@@ -20,8 +21,8 @@ catalogue and Desktop's project presentation metadata are separate contracts.
 - Run contract inspection and a read-only plan before changing live metadata.
 - Update the adapters and references together when Codex state keys, App Server
   methods, process names, or Remote filtering change.
-- Preserve the dry-run, stale-state refusal, backup, atomic-write, rollback, and
-  post-restart verification gates.
+- Preserve the dry-run, stale-state refusal, backup, atomic-write, rollback,
+  server-section verification, and post-restart verification gates.
 - Test only with synthetic fixtures in this repository. Run live tests from an
   ignored private directory.
 - Require explicit user approval before archiving threads, applying a plan,

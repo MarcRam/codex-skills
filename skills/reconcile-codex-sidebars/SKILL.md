@@ -5,9 +5,10 @@ description: Audit and safely reconcile Codex Desktop projects and threads with 
 
 # Reconcile Codex Sidebars
 
-Reconcile the shared Codex thread catalogue with Desktop's local project
-presentation metadata. Keep every live operation read-only until the user has
-reviewed the proposed archives, assignments, new projects, and ordering.
+Reconcile the shared Codex task catalogue with Desktop's local project metadata,
+then mirror that reviewed grouping into synchronized App Server thread sections.
+Keep every live operation read-only until the user has reviewed the proposed
+archives, assignments, projects, sections, and ordering.
 
 ## Workflow
 
@@ -31,10 +32,17 @@ reviewed the proposed archives, assignments, new projects, and ordering.
    one-shot writes a backup, rejects stale state, atomically applies the plan,
    verifies it, and relaunches Codex. Never edit state while Desktop runs.
    If the user changes direction before quitting, run `disarm-macos-restart`.
-9. After relaunch, run `check-macos-restart` and `verify-state`, then inspect the
-   Desktop sidebar. Follow [recovery.md](references/recovery.md) if a check fails.
-10. Ask the user to confirm the iPhone Remote view. App Server can verify the
-    shared catalogue, but it cannot prove the final client-side mobile layout.
+9. After relaunch, run `check-macos-restart` and `verify-state`. Follow
+   [recovery.md](references/recovery.md) if a check fails.
+10. Run `scripts/sync_sections.py build-plan` into the ignored private
+    directory. Review the exact section names and counts. Preserve existing
+    `Pinned`; refuse unexpected or duplicate server sections.
+11. Run `sync_sections.py apply-plan`. It creates missing sections through
+    `threadSection/create`, moves tasks through `thread/section/move`, rolls back
+    partial writes on failure, and verifies every assigned and projectless task.
+12. Run `sync_sections.py verify`, inspect Desktop, then ask the user to refresh
+    and confirm iPhone Remote. Server verification proves synchronized section
+    state; only the user can prove the final mobile rendering.
 
 ## Commands
 
@@ -46,6 +54,13 @@ python3 scripts/reconcile.py build-plan \
   --spec /private/spec.json --output /private/plan.json
 python3 scripts/reconcile.py audit-plan --plan /private/plan.json
 python3 scripts/reconcile.py arm-macos-restart --plan /private/plan.json
+python3 scripts/sync_sections.py build-plan \
+  --output /private/section-plan.json
+python3 scripts/sync_sections.py apply-plan \
+  --plan /private/section-plan.json \
+  --receipt /private/section-receipt.json
+python3 scripts/sync_sections.py verify \
+  --plan /private/section-plan.json
 ```
 
 Use `--threads-json` only for synthetic tests or an intentional offline audit.
@@ -55,7 +70,9 @@ Never commit inventory, spec, plan, receipt, backup, or transcript data.
 
 - Use App Server for thread listing, reading, archive, and restore operations.
 - Treat Desktop project assignments and ordering as versioned local state.
-- Refuse mutation while Desktop is running.
+- Treat App Server thread sections as the synchronized cross-client grouping.
+- Refuse direct Desktop JSON mutation while Desktop is running. Apply
+  synchronized sections only through App Server methods.
 - Refuse stale plans and plans with unmatched or ambiguous active threads.
 - Back up before replacement; write and fsync a temporary file; replace
   atomically; verify only owned sidebar fields after relaunch.
