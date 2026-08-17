@@ -1,0 +1,25 @@
+{
+  "local-projects": {
+    "alpha": {
+      "id": "alpha",
+      "name": "Alpha",
+      "rootPaths": ["/work/alpha"]
+    },
+    "existing": {
+      "id": "existing",
+      "name": "Existing",
+      "rootPaths": ["/work/old"]
+    }
+  },
+  "project-order": ["existing", "alpha"],
+  "thread-project-assignments": {
+    "t-existing": {"projectKind": "local", "projectId": "alpha"},
+    "t-reassign": {"projectKind": "local", "projectId": "alpha"},
+    "t-archived": {"projectKind": "local", "projectId": "alpha"}
+  },
+  "sidebar-project-thread-orders": {
+    "alpha": {"threadIds": ["t-reassign", "t-existing"]}
+  },
+  "projectless-thread-ids": ["t-projectless"],
+  "unrelated-runtime-setting": true
+}

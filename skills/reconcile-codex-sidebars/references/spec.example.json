@@ -1,0 +1,25 @@
+{
+  "newProjects": [
+    {
+      "name": "Research",
+      "rootPaths": ["/example/workspaces/research"]
+    }
+  ],
+  "updateProjects": [
+    {
+      "name": "Existing Project",
+      "rootPaths": ["/example/workspaces/current", "/example/workspaces/old"]
+    }
+  ],
+  "explicitAssignments": [
+    {
+      "threadId": "synthetic-thread-id",
+      "projectName": "Research"
+    },
+    {
+      "threadName": null,
+      "cwd": "/example/legacy/misleading-workspace",
+      "projectName": "Research"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "newProjects": [
+    {
+      "name": "Research",
+      "rootPaths": ["/work/research"]
+    }
+  ],
+  "updateProjects": [
+    {
+      "name": "Existing",
+      "rootPaths": ["/work/existing/current", "/work/existing/old"]
+    }
+  ],
+  "explicitAssignments": [
+    {
+      "threadId": "t-explicit",
+      "projectName": "Research"
+    },
+    {
+      "threadId": "t-reassign",
+      "projectName": "Existing",
+      "reassignExisting": true
+    }
+  ]
+}

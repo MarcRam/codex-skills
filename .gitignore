@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# Reconciliation artifacts contain private local metadata.
+*private*.json
+*plan*.json
+*receipt*.json
+*backup*
+runtime/
+artifacts/

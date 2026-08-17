@@ -1,0 +1,32 @@
+[
+  {
+    "id": "t-existing",
+    "name": "Zebra Note",
+    "preview": "Zebra Note",
+    "cwd": "/work/alpha"
+  },
+  {
+    "id": "t-projectless",
+    "name": "Quick Question",
+    "preview": "Quick Question",
+    "cwd": "/scratch"
+  },
+  {
+    "id": "t-path",
+    "name": "Alpha Note",
+    "preview": "Alpha Note",
+    "cwd": "/work/existing/current/job"
+  },
+  {
+    "id": "t-explicit",
+    "name": null,
+    "preview": "Ontology coverage",
+    "cwd": "/legacy/misleading-workspace"
+  },
+  {
+    "id": "t-reassign",
+    "name": "Beta Task",
+    "preview": "Beta Task",
+    "cwd": "/work/alpha"
+  }
+]

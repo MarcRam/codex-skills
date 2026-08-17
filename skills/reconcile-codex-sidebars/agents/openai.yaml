@@ -1,0 +1,4 @@
+interface:
+  display_name: "Reconcile Codex Sidebars"
+  short_description: "Safely align Desktop and Remote sidebars"
+  default_prompt: "Use $reconcile-codex-sidebars to audit and safely reconcile my Codex Desktop and Remote sidebar."
