@@ -8,10 +8,10 @@ screenshots of private sidebars.
 ## Purpose
 
 `reconcile-codex-sidebars` audits the thread catalogue shared by Codex Desktop
-and Remote, reconciles Desktop's local project assignments, then mirrors those
-assignments into server-owned thread sections for cross-client display. It
-exists because Desktop project metadata and synchronized thread sections are
-separate contracts.
+and Remote, reconciles Desktop's local project assignments, then migrates them
+into server-owned projects and `Thread.projectId` membership. Custom thread
+sections are a separate presentation contract and are not a substitute for
+Remote-visible project membership.
 
 ## Maintenance
 

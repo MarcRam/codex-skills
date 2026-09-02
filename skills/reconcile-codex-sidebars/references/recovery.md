@@ -19,6 +19,13 @@ than overriding the hash check.
 Do not restore while Desktop is running. Do not select a backup using a broad
 glob or delete other backups during recovery.
 
+## Restore synchronized projects
+
+Run `sync_projects.py rollback --receipt ... --output ...`. The command refuses
+to overwrite tasks whose project membership changed after the apply, then
+restores the exact prior `projectId` for each task. Preserve the receipt because
+it contains private task and project identifiers.
+
 ## Restore synchronized sections
 
 If a successful section sync must be reversed, run
