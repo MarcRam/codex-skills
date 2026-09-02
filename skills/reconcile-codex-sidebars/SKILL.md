@@ -44,6 +44,11 @@ archives, assignments, projects, sections, and ordering.
     and confirm iPhone Remote. Server verification proves synchronized section
     state; only the user can prove the final mobile rendering.
 
+For later reconciliation runs, preserve `Pinned` as an overlay, ignore tasks
+that have since been archived, and adopt reviewed tasks already placed in a
+project-named synchronized section even when Desktop's local project metadata
+has not yet caught up. New unsectioned tasks still require classification.
+
 ## Commands
 
 Run `python3 scripts/reconcile.py --help` for all options. Typical private flow:
@@ -71,6 +76,9 @@ Never commit inventory, spec, plan, receipt, backup, or transcript data.
 - Use App Server for thread listing, reading, archive, and restore operations.
 - Treat Desktop project assignments and ordering as versioned local state.
 - Treat App Server thread sections as the synchronized cross-client grouping.
+- Sort Desktop projects and custom sections with Desktop's supported reorder
+  operations. Do not claim that App Server synchronizes section order; its
+  section contract currently exposes names, appearance, and membership only.
 - Refuse direct Desktop JSON mutation while Desktop is running. Apply
   synchronized sections only through App Server methods.
 - Refuse stale plans and plans with unmatched or ambiguous active threads.

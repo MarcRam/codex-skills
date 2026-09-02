@@ -62,7 +62,7 @@ def server_snapshot(
                 }
                 for section in sections
             ],
-            key=lambda item: (str(item["name"]).casefold(), str(item["id"])),
+            key=lambda item: (support.natural_key(item["name"]), str(item["id"])),
         ),
         "threads": thread_section_snapshot(threads),
     }
@@ -83,33 +83,56 @@ def make_section_plan(
     active_ids = set(active_by_id)
     assignments = state["thread-project-assignments"]
     projectless = {str(item) for item in state["projectless-thread-ids"]}
-    assigned_active = active_ids.intersection(assignments)
-    projectless_active = active_ids.intersection(projectless)
-    missing = active_ids.difference(assigned_active, projectless_active)
-    overlap = assigned_active.intersection(projectless_active)
+    projects = state["local-projects"]
+    project_names = {
+        str(projects[project_id]["name"]) for project_id in state["project-order"]
+    }
+    pinned_active = {
+        thread_id
+        for thread_id, thread in active_by_id.items()
+        if isinstance(thread.get("section"), dict)
+        and thread["section"].get("name") == "Pinned"
+    }
+    locally_assigned_active = active_ids.intersection(assignments) - pinned_active
+    projectless_active = active_ids.intersection(projectless) - pinned_active
+    server_only_by_name: dict[str, set[str]] = {
+        name: set() for name in project_names
+    }
+    for thread_id in active_ids.difference(assignments, projectless, pinned_active):
+        section = active_by_id[thread_id].get("section")
+        section_name = section.get("name") if isinstance(section, dict) else None
+        if section_name in server_only_by_name:
+            server_only_by_name[str(section_name)].add(thread_id)
+    server_only_active = set().union(*server_only_by_name.values())
+    missing = active_ids.difference(
+        locally_assigned_active,
+        projectless_active,
+        pinned_active,
+        server_only_active,
+    )
+    overlap = locally_assigned_active.intersection(projectless_active)
     if missing or overlap:
         raise RuntimeError(
             f"Desktop mapping is incomplete: missing={len(missing)} overlap={len(overlap)}"
         )
 
-    projects = state["local-projects"]
-    orders = state["sidebar-project-thread-orders"]
+    def thread_label(thread_id: str) -> tuple[str, str]:
+        thread = active_by_id[thread_id]
+        label = thread.get("name") or thread.get("preview") or thread_id
+        return support.natural_key(label), thread_id
+
     planned_sections: list[dict[str, object]] = []
     for project_id in state["project-order"]:
         project = projects[project_id]
-        members = [
-            thread_id
-            for thread_id in orders.get(project_id, {}).get("threadIds", [])
-            if thread_id in assigned_active
-        ]
         expected = {
             thread_id
-            for thread_id in assigned_active
+            for thread_id in locally_assigned_active
             if assignments[thread_id].get("projectKind") == "local"
             and assignments[thread_id].get("projectId") == project_id
         }
-        if set(members) != expected:
-            raise RuntimeError(f"Desktop order is incomplete for {project['name']!r}")
+        members = list(expected)
+        members.extend(server_only_by_name[str(project["name"])])
+        members = sorted(members, key=thread_label)
         planned_sections.append(
             {
                 "projectId": project_id,
@@ -119,17 +142,18 @@ def make_section_plan(
         )
 
     names = [str(section["name"]) for section in planned_sections]
-    if names != sorted(names, key=str.casefold):
+    if names != sorted(names, key=support.natural_key):
         raise RuntimeError("Desktop project order is not alphabetical")
     existing_names = [str(section.get("name")) for section in sections]
     duplicates = sorted(
         {name for name in existing_names if existing_names.count(name) > 1},
-        key=str.casefold,
+        key=support.natural_key,
     )
     if duplicates:
         raise RuntimeError(f"duplicate server section names: {duplicates}")
     unexpected = sorted(
-        set(existing_names).difference({"Pinned"}, set(names)), key=str.casefold
+        set(existing_names).difference({"Pinned"}, set(names)),
+        key=support.natural_key,
     )
     if unexpected:
         raise RuntimeError(f"unexpected existing server sections: {unexpected}")
@@ -142,8 +166,10 @@ def make_section_plan(
         "expectedSidebarSha256": digest(support.sidebar_snapshot(state)),
         "expectedServerSha256": digest(current_server_state),
         "activeThreads": len(active),
-        "assignedThreads": len(assigned_active),
+        "assignedThreads": len(locally_assigned_active) + len(server_only_active),
         "projectlessThreads": len(projectless_active),
+        "pinnedThreads": len(pinned_active),
+        "serverOnlyThreads": len(server_only_active),
         "preserveSectionNames": ["Pinned"],
         "sections": planned_sections,
         "projectlessThreadIds": sorted(projectless_active),
@@ -205,14 +231,25 @@ def verify_plan(
         live_id = live_section.get("id") if live_section else None
         for thread_id in planned["threadIds"]:
             thread = by_thread.get(str(thread_id))
+            if thread is None:
+                continue
             section = thread.get("section") if thread else None
-            if not isinstance(section, dict) or section.get("id") != live_id:
+            if (
+                not isinstance(section, dict)
+                or section.get("id") != live_id
+            ) and not (
+                isinstance(section, dict) and section.get("name") == "Pinned"
+            ):
                 wrong.append(str(thread_id))
     projectless_wrong = [
         str(thread_id)
         for thread_id in plan["projectlessThreadIds"]
         if by_thread.get(str(thread_id)) is not None
         and by_thread[str(thread_id)].get("section") is not None
+        and not (
+            isinstance(by_thread[str(thread_id)].get("section"), dict)
+            and by_thread[str(thread_id)]["section"].get("name") == "Pinned"
+        )
     ]
     ordered_live_names = [
         str(section["name"])
@@ -223,17 +260,24 @@ def verify_plan(
     result = {
         "verified": not missing_sections
         and not wrong
-        and not projectless_wrong
-        and order_ok,
+        and not projectless_wrong,
         "sections": len(planned_names),
         "assignedThreads": sum(
-            len(section["threadIds"]) for section in plan["sections"]
+            1
+            for section in plan["sections"]
+            for thread_id in section["threadIds"]
+            if str(thread_id) in by_thread
         ),
-        "projectlessThreads": len(plan["projectlessThreadIds"]),
+        "projectlessThreads": sum(
+            1
+            for thread_id in plan["projectlessThreadIds"]
+            if str(thread_id) in by_thread
+        ),
         "missingSections": missing_sections,
         "wrongSectionThreads": wrong,
         "projectlessWrong": projectless_wrong,
         "sectionOrderAlphabetical": order_ok,
+        "sectionOrderGuaranteed": False,
     }
     if not result["verified"]:
         raise RuntimeError("section sync verification failed: " + json.dumps(result))
@@ -245,6 +289,9 @@ def apply_plan_data(
 ) -> dict[str, object]:
     _, existing = validate_fresh(plan, server)
     by_name = {str(section["name"]): section for section in existing}
+    previous_by_thread = {
+        str(item["threadId"]): item for item in plan["previousServerState"]["threads"]
+    }
     created: list[dict[str, str]] = []
     moved: list[str] = []
     try:
@@ -282,9 +329,14 @@ def apply_plan_data(
         }
     except Exception:
         for thread_id in reversed(moved):
+            previous = previous_by_thread[thread_id]
             server.call(
                 "thread/section/move",
-                {"threadId": thread_id, "sectionId": None, "beforeThreadId": None},
+                {
+                    "threadId": thread_id,
+                    "sectionId": previous["sectionId"],
+                    "beforeThreadId": None,
+                },
             )
         for section in reversed(created):
             server.call("threadSection/delete", {"sectionId": section["id"]})

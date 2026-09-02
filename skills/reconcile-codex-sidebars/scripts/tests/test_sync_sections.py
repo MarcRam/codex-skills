@@ -97,6 +97,12 @@ class SyncSectionTests(unittest.TestCase):
             self.assertEqual(plan["assignedThreads"], 4)
             self.assertEqual(plan["projectlessThreads"], 1)
 
+    def test_natural_project_order_matches_sidebar_number_sort(self) -> None:
+        self.assertEqual(
+            sorted(["00 Rust Dev", "000 Components"], key=reconcile.natural_key),
+            ["000 Components", "00 Rust Dev"],
+        )
+
     def test_apply_creates_and_verifies_shared_sections(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             state_path, state, threads, server = self.build_inputs(Path(directory))
@@ -110,6 +116,106 @@ class SyncSectionTests(unittest.TestCase):
             self.assertEqual(
                 [section["name"] for section in server.sections],
                 ["Pinned", "Alpha", "Existing", "Research"],
+            )
+
+    def test_plan_preserves_pins_and_adopts_reviewed_section_only_threads(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            state_path, state, threads, server = self.build_inputs(Path(directory))
+            pinned = next(thread for thread in threads if thread["id"] == "t-existing")
+            pinned["section"] = copy.deepcopy(server.sections[0])
+            section_only = {
+                "id": "t-section-only",
+                "name": "Added Later",
+                "preview": "Added Later",
+                "cwd": "/new/location",
+                "section": {"id": "alpha-live", "name": "Alpha"},
+            }
+            threads.append(section_only)
+            server.threads = copy.deepcopy(threads)
+
+            plan = sync_sections.make_section_plan(
+                state, threads, server.sections, state_path
+            )
+
+            alpha = next(item for item in plan["sections"] if item["name"] == "Alpha")
+            self.assertEqual(alpha["threadIds"], ["t-section-only"])
+            self.assertEqual(plan["pinnedThreads"], 1)
+            self.assertEqual(plan["serverOnlyThreads"], 1)
+
+    def test_verify_ignores_archived_and_pinned_tasks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            state_path, state, threads, server = self.build_inputs(Path(directory))
+            plan = sync_sections.make_section_plan(
+                state, threads, server.sections, state_path
+            )
+            sync_sections.apply_plan_data(plan, server)
+            server.threads = [
+                thread for thread in server.threads if thread["id"] != "t-reassign"
+            ]
+            pinned = next(
+                thread for thread in server.threads if thread["id"] == "t-existing"
+            )
+            pinned["section"] = copy.deepcopy(server.sections[0])
+            projectless = next(
+                thread for thread in server.threads if thread["id"] == "t-projectless"
+            )
+            projectless["section"] = copy.deepcopy(server.sections[0])
+
+            result = sync_sections.verify_plan(plan, server)
+
+            self.assertTrue(result["verified"])
+            self.assertEqual(result["assignedThreads"], 3)
+            self.assertEqual(result["projectlessThreads"], 1)
+
+    def test_verify_does_not_treat_server_list_order_as_synced_order(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            state_path, state, threads, server = self.build_inputs(Path(directory))
+            plan = sync_sections.make_section_plan(
+                state, threads, server.sections, state_path
+            )
+            sync_sections.apply_plan_data(plan, server)
+            server.sections[1:] = reversed(server.sections[1:])
+
+            result = sync_sections.verify_plan(plan, server)
+
+            self.assertTrue(result["verified"])
+            self.assertFalse(result["sectionOrderAlphabetical"])
+            self.assertFalse(result["sectionOrderGuaranteed"])
+
+    def test_partial_apply_restores_previous_membership(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            state_path, state, threads, server = self.build_inputs(Path(directory))
+            existing = {"id": "existing-section", "name": "Existing", "appearance": None}
+            server.sections.append(existing)
+            original_thread = next(
+                thread for thread in server.threads if thread["id"] == "t-existing"
+            )
+            original_thread["section"] = copy.deepcopy(existing)
+            plan = sync_sections.make_section_plan(
+                state, server.threads, server.sections, state_path
+            )
+            original_call = server.call
+            move_count = 0
+
+            def fail_second_move(method: str, params: dict[str, object]):
+                nonlocal move_count
+                if method == "thread/section/move":
+                    move_count += 1
+                    if move_count == 2:
+                        raise RuntimeError("injected move failure")
+                return original_call(method, params)
+
+            server.call = fail_second_move
+            with self.assertRaisesRegex(RuntimeError, "injected move failure"):
+                sync_sections.apply_plan_data(plan, server)
+
+            restored = next(
+                thread for thread in server.threads if thread["id"] == "t-existing"
+            )
+            self.assertEqual(restored["section"]["id"], "existing-section")
+            self.assertEqual(
+                [section["name"] for section in server.sections],
+                ["Pinned", "Existing"],
             )
 
 

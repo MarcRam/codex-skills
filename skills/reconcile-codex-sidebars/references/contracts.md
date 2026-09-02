@@ -29,6 +29,12 @@ records entry time. The generated protocol describes section appearance as
 synchronized across clients. Use these server-owned sections, not Desktop's
 JSON project assignments, for the Remote-visible mirror.
 
+The section contract does not expose a cross-client section-order field.
+Verify synchronized names and memberships only. Sort Desktop projects and
+custom sections through Desktop's supported sidebar operations, and treat the
+iPhone's final ordering as a separate visual boundary rather than claiming the
+App Server controls it.
+
 ## Inputs used by the script
 
 1. Installed App Server executable, discovered from `CODEX_EXECUTABLE`, the
@@ -41,6 +47,15 @@ JSON project assignments, for the Remote-visible mirror.
 5. macOS process and launchd behavior for the restart-gated apply step.
 6. App Server section records and each active task's current `section` value.
 
+Pinned tasks are an overlay and cannot simultaneously occupy an ordinary
+section. Preserve them in `Pinned` and exclude them from ordinary membership
+checks. A task that has been reviewed and placed directly into an existing
+project-named section may be adopted as a section-only assignment when local
+Desktop project metadata has not yet caught up. Archived tasks are outside the
+active verification set. Build synchronized section order from the live task
+labels and local assignment map; do not require Desktop's optional per-project
+thread-order cache to be current.
+
 ## Release-change audit
 
 Before mutation after a Codex update:
@@ -48,7 +63,9 @@ Before mutation after a Codex update:
 1. Run `inventory` and confirm required state keys and value types.
 2. Generate or inspect the installed App Server v2 schema. Confirm
    `threadSection/list`, `threadSection/create`, `threadSection/delete`,
-   `thread/section/move`, and `Thread.section` still exist.
+   `thread/section/move`, and `Thread.section` still exist. Confirm that no
+   server section-order field has appeared before changing the ordering
+   boundary.
 3. Query `thread/list` and `threadSection/list` read-only; confirm pagination
    fields and active/archived filters.
 4. Inspect one existing local assignment and one project-order entry.
