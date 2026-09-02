@@ -4,9 +4,9 @@ Public, reusable skills for OpenAI Codex.
 
 ## Skills
 
-- `reconcile-codex-sidebars` — audit and safely reconcile Codex Desktop project
-  metadata with the thread catalogue used by Codex Remote, including
-  deterministic alphabetical ordering and restart-safe macOS application.
+- `reconcile-codex-sidebars` — safely reconcile Desktop project metadata, then
+  mirror it into synchronized App Server sections used across Desktop and
+  Remote, with deterministic alphabetical ordering and rollback support.
 
 ## Install a skill
 
@@ -34,7 +34,8 @@ before modifying or publishing a skill.
 
 ```bash
 python3 -m unittest -v \
-  skills/reconcile-codex-sidebars/scripts/tests/test_reconcile.py
+  skills/reconcile-codex-sidebars/scripts/tests/test_reconcile.py \
+  skills/reconcile-codex-sidebars/scripts/tests/test_sync_sections.py
 python3 /path/to/skill-creator/scripts/quick_validate.py \
   skills/reconcile-codex-sidebars
 ```

@@ -9,6 +9,7 @@ import json
 import os
 import platform
 import plistlib
+import re
 import select
 import shutil
 import subprocess
@@ -31,6 +32,15 @@ SIDEBAR_KEYS = (
     "sidebar-project-thread-orders",
     "projectless-thread-ids",
 )
+
+
+def natural_key(value: object) -> str:
+    """Return a deterministic, case-insensitive key matching sidebar number order."""
+    return re.sub(
+        r"\d+",
+        lambda match: f"{int(match.group()):020d}",
+        str(value).casefold(),
+    )
 
 
 def canonical_json(value: object) -> bytes:
@@ -422,7 +432,7 @@ def make_plan(
     def thread_label(thread_id: str) -> tuple[str, str]:
         thread = thread_by_id[thread_id]
         label = thread.get("name") or thread.get("preview") or thread_id
-        return str(label).casefold(), thread_id
+        return natural_key(label), thread_id
 
     orders = {
         project_id: {"threadIds": sorted(thread_ids, key=thread_label)}
@@ -432,7 +442,7 @@ def make_plan(
     project_order = sorted(
         projects,
         key=lambda project_id: (
-            str(projects[project_id]["name"]).casefold(),
+            natural_key(projects[project_id]["name"]),
             project_id,
         ),
     )
@@ -456,8 +466,8 @@ def make_plan(
         "changedAssignments": changed,
         "unmatched": unmatched,
         "ambiguous": ambiguous,
-        "newProjects": sorted(new_project_names, key=str.casefold),
-        "updatedProjects": sorted(updated_project_names, key=str.casefold),
+        "newProjects": sorted(new_project_names, key=natural_key),
+        "updatedProjects": sorted(updated_project_names, key=natural_key),
         "projectOrder": [projects[project_id]["name"] for project_id in project_order],
         "proposedState": proposed,
     }
@@ -484,7 +494,7 @@ def audit_plan_data(
     }
     project_order = state["project-order"]
     names = [projects[project_id]["name"] for project_id in project_order]
-    alphabetical = names == sorted(names, key=str.casefold)
+    alphabetical = names == sorted(names, key=natural_key)
     complete_order = len(project_order) == len(set(project_order)) == len(
         projects
     ) and set(project_order) == set(projects)
@@ -493,7 +503,7 @@ def audit_plan_data(
     def label(thread_id: str) -> tuple[str, str]:
         thread = thread_by_id[thread_id]
         value = thread.get("name") or thread.get("preview") or thread_id
-        return str(value).casefold(), str(thread_id)
+        return natural_key(value), str(thread_id)
 
     order_errors: list[str] = []
     orders = state["sidebar-project-thread-orders"]
@@ -659,7 +669,7 @@ def verify_state_data(plan_path: Path) -> dict[str, object]:
     validate_state(state)
     projects = state["local-projects"]
     names = [projects[project_id]["name"] for project_id in state["project-order"]]
-    if names != sorted(names, key=str.casefold):
+    if names != sorted(names, key=natural_key):
         raise RuntimeError("project order is not alphabetical")
     sidebar_hash = sha256(canonical_json(sidebar_snapshot(state)))
     if sidebar_hash != plan["proposedSidebarSha256"]:
