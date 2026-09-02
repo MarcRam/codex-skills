@@ -35,6 +35,7 @@ before modifying or publishing a skill.
 ```bash
 python3 -m unittest -v \
   skills/reconcile-codex-sidebars/scripts/tests/test_reconcile.py \
+  skills/reconcile-codex-sidebars/scripts/tests/test_sync_projects.py \
   skills/reconcile-codex-sidebars/scripts/tests/test_sync_sections.py
 python3 /path/to/skill-creator/scripts/quick_validate.py \
   skills/reconcile-codex-sidebars

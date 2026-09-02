@@ -45,6 +45,11 @@ custom sections through Desktop's supported sidebar operations, and treat the
 iPhone's final ordering as a separate visual boundary rather than claiming the
 App Server controls it.
 
+The verified iPhone client uses ordinary case-insensitive lexical collation,
+without numeric normalization. For example, `00 Rust Dev` sorts before
+`000 Components`. Use the same key for Desktop, App Server project positions,
+and per-project task ordering so both clients agree.
+
 ## Inputs used by the script
 
 1. Installed App Server executable, discovered from `CODEX_EXECUTABLE`, the
