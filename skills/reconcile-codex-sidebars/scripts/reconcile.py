@@ -688,11 +688,17 @@ def verify_state(args: argparse.Namespace) -> None:
 
 def relaunch_desktop() -> None:
     for app_name in ("ChatGPT", "Codex"):
-        result = subprocess.run(
-            ["open", "-a", app_name], check=False, capture_output=True, text=True
-        )
-        if result.returncode == 0:
-            return
+        for command in (["open", "-a", app_name], ["open", "-n", "-a", app_name]):
+            result = subprocess.run(
+                command, check=False, capture_output=True, text=True
+            )
+            if result.returncode != 0:
+                continue
+            deadline = time.time() + 15
+            while time.time() < deadline:
+                if desktop_running():
+                    return
+                time.sleep(0.5)
     raise RuntimeError("could not relaunch Codex Desktop")
 
 
