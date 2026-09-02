@@ -177,6 +177,26 @@ class ReconcileTests(unittest.TestCase):
             self.assertFalse(decoded["KeepAlive"])
             self.assertTrue(decoded["RunAtLoad"])
 
+    def test_relaunch_waits_for_a_real_desktop_process(self) -> None:
+        with (
+            mock.patch.object(
+                reconcile, "desktop_running", side_effect=[False, False, True]
+            ),
+            mock.patch.object(reconcile.time, "sleep"),
+            mock.patch.object(
+                reconcile.subprocess,
+                "run",
+                return_value=subprocess_result(0, "", ""),
+            ) as run,
+        ):
+            reconcile.relaunch_desktop()
+        run.assert_called_once_with(
+            ["open", "-a", "ChatGPT"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
 
 def subprocess_result(returncode: int, stdout: str, stderr: str) -> object:
     return type(
