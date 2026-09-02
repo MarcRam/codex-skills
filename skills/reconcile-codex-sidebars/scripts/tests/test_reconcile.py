@@ -77,12 +77,29 @@ class ReconcileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             plan_path, plan = self.build_synthetic_plan(root)
-            Path(plan["statePath"]).write_text('{"changed": true}\n')
+            state_path = Path(plan["statePath"])
+            state = json.loads(state_path.read_text())
+            state["project-order"] = list(reversed(state["project-order"]))
+            state_path.write_bytes(reconcile.canonical_json(state))
             with (
                 mock.patch.object(reconcile, "desktop_running", return_value=False),
-                self.assertRaisesRegex(RuntimeError, "state changed"),
+                self.assertRaisesRegex(RuntimeError, "sidebar state changed"),
             ):
                 reconcile.apply_plan_data(plan_path)
+
+    def test_apply_preserves_unrelated_live_state_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan_path, plan = self.build_synthetic_plan(root)
+            state_path = Path(plan["statePath"])
+            state = json.loads(state_path.read_text())
+            state["unrelated-live-value"] = {"changed": True}
+            state_path.write_bytes(reconcile.canonical_json(state))
+            with mock.patch.object(reconcile, "desktop_running", return_value=False):
+                result = reconcile.apply_plan_data(plan_path)
+            self.assertTrue(result["verified"])
+            written = json.loads(state_path.read_text())
+            self.assertEqual(written["unrelated-live-value"], {"changed": True})
 
     def test_audit_accepts_either_order_for_equal_titles(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

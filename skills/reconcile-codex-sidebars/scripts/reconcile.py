@@ -457,6 +457,7 @@ def make_plan(
         "createdAt": int(time.time()),
         "statePath": str(state_path),
         "expectedStateSha256": sha256(state_bytes),
+        "expectedSidebarSha256": sha256(canonical_json(sidebar_snapshot(state))),
         "proposedStateSha256": sha256(canonical_json(proposed)),
         "proposedSidebarSha256": sha256(canonical_json(sidebar_snapshot(proposed))),
         "activeThreadCount": len(threads),
@@ -622,15 +623,24 @@ def validate_plan_for_apply(plan: dict[str, object]) -> tuple[Path, bytes]:
     if plan.get("unmatched") or plan.get("ambiguous"):
         raise RuntimeError("refusing a plan with unmatched or ambiguous active threads")
     state_path = Path(plan["statePath"])
-    current = state_path.read_bytes()
-    if sha256(current) != plan["expectedStateSha256"]:
+    current = load_json(state_path)
+    validate_state(current)
+    current_sidebar_hash = sha256(canonical_json(sidebar_snapshot(current)))
+    if current_sidebar_hash != plan.get("expectedSidebarSha256"):
         raise RuntimeError(
-            "Codex state changed; rebuild the plan instead of applying stale data"
+            "Codex sidebar state changed; rebuild the plan instead of applying stale data"
         )
-    proposed = canonical_json(plan["proposedState"])
-    if sha256(proposed) != plan["proposedStateSha256"]:
+    proposed_state = plan["proposedState"]
+    proposed_payload = canonical_json(proposed_state)
+    if sha256(proposed_payload) != plan["proposedStateSha256"]:
         raise RuntimeError("plan payload hash does not match")
-    return state_path, proposed
+    merged = dict(current)
+    for key in SIDEBAR_KEYS:
+        merged[key] = proposed_state[key]
+    merged_sidebar_hash = sha256(canonical_json(sidebar_snapshot(merged)))
+    if merged_sidebar_hash != plan["proposedSidebarSha256"]:
+        raise RuntimeError("merged sidebar payload hash does not match")
+    return state_path, canonical_json(merged)
 
 
 def apply_plan_data(plan_path: Path) -> dict[str, object]:

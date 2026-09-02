@@ -2,8 +2,10 @@
 
 ## Apply failure
 
-The one-shot fails closed when Desktop remains running, the source-state hash
+The one-shot fails closed when Desktop remains running, an owned sidebar field
 changes, the plan payload is corrupt, or post-write sidebar verification fails.
+Unrelated Desktop state may change between planning and apply; the tool merges
+only its owned sidebar fields into the latest state so those changes survive.
 Read the private receipt and log before retrying. Rebuild stale plans rather
 than overriding the hash check.
 
