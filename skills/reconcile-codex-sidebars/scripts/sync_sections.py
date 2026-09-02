@@ -6,9 +6,8 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
-from pathlib import Path
 import time
-
+from pathlib import Path
 
 SUPPORT_SCRIPT = Path(__file__).with_name("reconcile.py")
 SUPPORT_SPEC = importlib.util.spec_from_file_location("sidebar_reconcile", SUPPORT_SCRIPT)
@@ -62,7 +61,10 @@ def server_snapshot(
                 }
                 for section in sections
             ],
-            key=lambda item: (support.natural_key(item["name"]), str(item["id"])),
+            key=lambda item: (
+                support.alphabetical_key(item["name"]),
+                str(item["id"]),
+            ),
         ),
         "threads": thread_section_snapshot(threads),
     }
@@ -119,7 +121,7 @@ def make_section_plan(
     def thread_label(thread_id: str) -> tuple[str, str]:
         thread = active_by_id[thread_id]
         label = thread.get("name") or thread.get("preview") or thread_id
-        return support.natural_key(label), thread_id
+        return support.alphabetical_key(label), thread_id
 
     planned_sections: list[dict[str, object]] = []
     for project_id in state["project-order"]:
@@ -142,18 +144,18 @@ def make_section_plan(
         )
 
     names = [str(section["name"]) for section in planned_sections]
-    if names != sorted(names, key=support.natural_key):
+    if names != sorted(names, key=support.alphabetical_key):
         raise RuntimeError("Desktop project order is not alphabetical")
     existing_names = [str(section.get("name")) for section in sections]
     duplicates = sorted(
         {name for name in existing_names if existing_names.count(name) > 1},
-        key=support.natural_key,
+        key=support.alphabetical_key,
     )
     if duplicates:
         raise RuntimeError(f"duplicate server section names: {duplicates}")
     unexpected = sorted(
         set(existing_names).difference({"Pinned"}, set(names)),
-        key=support.natural_key,
+        key=support.alphabetical_key,
     )
     if unexpected:
         raise RuntimeError(f"unexpected existing server sections: {unexpected}")

@@ -148,7 +148,7 @@ def make_plan(
         )
 
     desired_projects = sorted(
-        server_projects, key=lambda item: reconcile.natural_key(item["name"])
+        server_projects, key=lambda item: reconcile.alphabetical_key(item["name"])
     )
     return {
         "schemaVersion": 1,

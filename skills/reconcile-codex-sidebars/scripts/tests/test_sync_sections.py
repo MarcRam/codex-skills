@@ -7,7 +7,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 SCRIPTS = Path(__file__).parents[1]
 FIXTURES = Path(__file__).with_name("fixtures")
 
@@ -97,10 +96,13 @@ class SyncSectionTests(unittest.TestCase):
             self.assertEqual(plan["assignedThreads"], 4)
             self.assertEqual(plan["projectlessThreads"], 1)
 
-    def test_natural_project_order_matches_sidebar_number_sort(self) -> None:
+    def test_lexical_project_order_matches_remote_sort(self) -> None:
         self.assertEqual(
-            sorted(["00 Rust Dev", "000 Components"], key=reconcile.natural_key),
-            ["000 Components", "00 Rust Dev"],
+            sorted(
+                ["000 Components", "00 Rust Dev"],
+                key=reconcile.alphabetical_key,
+            ),
+            ["00 Rust Dev", "000 Components"],
         )
 
     def test_apply_creates_and_verifies_shared_sections(self) -> None:
@@ -184,7 +186,7 @@ class SyncSectionTests(unittest.TestCase):
 
     def test_partial_apply_restores_previous_membership(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            state_path, state, threads, server = self.build_inputs(Path(directory))
+            state_path, state, _threads, server = self.build_inputs(Path(directory))
             existing = {"id": "existing-section", "name": "Existing", "appearance": None}
             server.sections.append(existing)
             original_thread = next(
